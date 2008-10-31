@@ -1,0 +1,11 @@
+name:            regexc
+version:         0.0
+license:         BSD3
+license-file:    LICENSE
+author:          Hakodate-kun
+homepage:        http://d.hatena.ne.jp/desumasu/
+category:        Text
+synopsis:        Monadic regex combinators
+description:     RegexC enables haskell programmers to write regex using monadic expressions.
+exposed-modules: Text.RegexC
+ghc-options:     -O2
