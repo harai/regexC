@@ -1,8 +1,8 @@
 {-# OPTIONS -fglasgow-exts #-}
-module RegexC where
+module Text.RegexC where
  
 newtype Regex a = Rx { runRegex :: (String -> [(String, a)]) }
---newtype RxInput = RxIn { rxInToMatch :: String, rxInMatched :: String } -- Match‚ðScan‚É
+--newtype RxInput = RxIn { rxInToScan :: String, rxInScanned :: String }
 
 instance Monad Regex where
     m >>= next = Rx $ \str -> let
@@ -51,30 +51,10 @@ rxEnd = Rx $ \str -> case str of
 getConsumed :: String -> String -> String
 getConsumed before after = reverse $ drop (length after) $ reverse before
 
-
-regexMatch :: Regex a -> String -> Bool
-regexMatch rx = not . null . runRegex rx
-           
+regexMatch :: Regex a -> String -> Maybe String
+regexMatch rx str = case runRegex (rxOne rx) str of
+                      [] -> Nothing
+                      x : _ -> Just (fst $ snd x)
+                          
 -- regexReplace :: Regex a -> String -> String
 -- regexReplace
-
--- /(ab)*ab/
-testRegex :: Regex String
-testRegex = do
-  (matched, _) <- rxZeroOrMoreLongest $ do
-                    rxOneChar 'a'
-                    rxOneChar 'b'
-  rxOneChar 'a'
-  rxOneChar 'b'
-  return matched
-
--- /(ab)ab$/
-testRegex2 :: Regex String
-testRegex2 = do
-  (matched, _) <- rxOne $ do
-                    rxOneChar 'a'
-                    rxOneChar 'b'
-  rxOneChar 'a'
-  rxOneChar 'b'
-  rxEnd
-  return matched
