@@ -55,6 +55,7 @@ regexMatch :: Regex a -> String -> Maybe String
 regexMatch rx str = case runRegex (rxOne rx) str of
                       [] -> Nothing
                       x : _ -> Just (fst $ snd x)
-                          
+
+-- hoge
 -- regexReplace :: Regex a -> String -> String
 -- regexReplace
