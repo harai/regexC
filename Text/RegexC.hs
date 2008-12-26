@@ -27,8 +27,8 @@ rxOneChar c = Rx $ \target ->
 
 -- http://www.haskell.org/ghc/docs/latest/html/users_guide/other-type-extensions.html#scoped-type-variables
 -- returns matched string and an arbitrary return value, which is Nothing if zero-matched.
-rxZeroOrMoreLongest :: forall a . Regex a -> Regex (String, Maybe a)
-rxZeroOrMoreLongest sub =
+rxStar :: forall a . Regex a -> Regex (String, Maybe a)
+rxStar sub =
     Rx $ \(RxTarget toScan scanned _) -> let
         getCand'' :: String -> (RxTarget, a) -> (RxTarget, (String, Maybe a))
         getCand'' prevMatch (RxTarget toScan' scanned' matched', a) =
@@ -47,8 +47,8 @@ rxZeroOrMoreLongest sub =
             iterate getCand' [(RxTarget toScan scanned [], ("", Nothing))]
         in getCand
 
-rxOne :: forall a . Regex a -> Regex (String, a)
-rxOne sub = Rx $ \(RxTarget toScan scanned _)  -> let
+rxParenthesis :: forall a . Regex a -> Regex (String, a)
+rxParenthesis sub = Rx $ \(RxTarget toScan scanned _)  -> let
     getCand' :: [(RxTarget, a)] -> [(RxTarget, (String, a))]
     getCand' = map (\(target'@(RxTarget _ _ matched), a) -> (target', (reverse matched, a)))
 
@@ -62,15 +62,15 @@ rxCaret = Rx $ \target ->
         RxTarget toScan [] matched -> [(RxTarget toScan [] matched, ())]
         _ -> []
 
-rxEnd :: Regex ()
-rxEnd = Rx $ \target ->
+rxDollar :: Regex ()
+rxDollar = Rx $ \target ->
     case target of
         RxTarget [] scanned matched -> [(RxTarget [] scanned matched, ())]
         _ -> []
 
 regexMatch :: Regex a -> String -> Maybe String
 regexMatch rx str =
-    case runRegex (rxOne rx) (RxTarget str [] []) of
+    case runRegex (rxParenthesis rx) (RxTarget str [] []) of
         [] -> Nothing
         (RxTarget _ _ matched, _) : _ -> Just (reverse matched)
 

@@ -7,16 +7,16 @@ import Text.RegexC
 main = runTestTT tests
 
 tests = test [
-    testZeroOrMoreLongest,
-    testEnd,
+    testStar,
+    testDollar,
     testCaret ]
 
-testZeroOrMoreLongest = test [
-    "test1" ~: Just "abab" ~=? regexMatch testRegex "ababcd",
-    "test2" ~: Nothing ~=? regexMatch testRegex "acd" ]
+testStar = test [
+    "test1" ~: Just "abab" ~=? regexMatch testRxStar "ababcd",
+    "test2" ~: Nothing ~=? regexMatch testRxStar "acd" ]
 
-testEnd = test [
-    "test1" ~: Just "abab" ~=? regexMatch testRegex2 "abab" ]
+testDollar = test [
+    "test1" ~: Just "abab" ~=? regexMatch testRxDollar "abab" ]
 
 testCaret = test [
     "test1" ~: Just "ab" ~=? regexMatch testRxCaret "abcd",
@@ -24,25 +24,35 @@ testCaret = test [
     "test3" ~: Nothing ~=? regexMatch testRxCaret "" ]
 
 -- m/(ab)*ab/
-testRegex :: Regex String
-testRegex = do
-    (matched, _) <- rxZeroOrMoreLongest $ do
+testRxStar :: Regex String
+testRxStar = do
+    (matched, _) <- rxStar $ do
         rxOneChar 'a'
         rxOneChar 'b'
     rxOneChar 'a'
     rxOneChar 'b'
     return matched
 
--- m/(ab)ab$/
-testRegex2 :: Regex String
-testRegex2 = do
-    (matched, _) <- rxOne $ do
-        rxOneChar 'a'
-        rxOneChar 'b'
+-- m/abab$/
+testRxDollar :: Regex ()
+testRxDollar = do
     rxOneChar 'a'
     rxOneChar 'b'
-    rxEnd
-    return matched
+    rxOneChar 'a'
+    rxOneChar 'b'
+    rxDollar
+    return ()
+
+-- -- m/(ab)ab/
+-- testRxParenthesis :: Regex String
+-- testRxParenthesis = do
+--     (matched, _) <- rxParenthesis $ do
+--         rxOneChar 'a'
+--         rxOneChar 'b'
+--     rxOneChar 'a'
+--     rxOneChar 'b'
+--     rxDollar
+--     return matched
 
 -- m/^ab/
 testRxCaret :: Regex ()
