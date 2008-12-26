@@ -47,6 +47,12 @@ rxOne sub =
         getCand = getCand' $ runRegex sub target
         in getCand
 
+rxCaret :: Regex ()
+rxCaret = Rx $ \target ->
+    case target of
+        RxTarget xs [] -> [(RxTarget xs [], ())]
+        _ -> []
+
 rxEnd :: Regex ()
 rxEnd = Rx $ \target -> case target of
                        RxTarget [] ys -> [(RxTarget [] ys, ())]
