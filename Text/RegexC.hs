@@ -3,7 +3,7 @@ module Text.RegexC where
  
 newtype Regex a = Rx { runRegex :: (RxTarget -> [(RxTarget, a)]) }
     
--- rxTargetScanned holds scanned chars in reverse order
+-- rxTargetScanned and rxCurrentMatch hold scanned and matched chars in reverse order
 data RxTarget = RxTarget {
     rxTargetToScan :: String,
     rxTargetScanned :: String,
@@ -19,9 +19,9 @@ instance Monad Regex where
 rxOneChar :: Char -> Regex Char
 rxOneChar c = Rx $ \target ->
     case target of
-        RxTarget (x : xs) ys matched ->
+        RxTarget (x : toScan) scanned matched ->
             if c == x
-            then [(RxTarget xs (x : ys) (matched ++ [x]), x)]
+            then [(RxTarget toScan (x : scanned) (x : matched), x)]
             else []
         _ -> []
 
@@ -32,9 +32,9 @@ rxZeroOrMoreLongest sub =
     Rx $ \(RxTarget toScan scanned _) -> let
         getCand'' :: String -> (RxTarget, a) -> (RxTarget, (String, Maybe a))
         getCand'' prevMatch (RxTarget toScan' scanned' matched', a) =
-            (RxTarget toScan' scanned' matched, (matched, Just a))
+            (RxTarget toScan' scanned' matched, (reverse matched, Just a))
             where
-                matched = prevMatch ++ matched'
+                matched = matched' ++ prevMatch
 
         getCand' :: [(RxTarget, (String, Maybe a))] -> [(RxTarget, (String, Maybe a))]
         getCand' ((target@(RxTarget _ _ matched), _) : _) =
@@ -42,16 +42,15 @@ rxZeroOrMoreLongest sub =
         getCand' [] = []
 
         getCand :: [(RxTarget, (String, Maybe a))]
-        getCand = reverse $
-                  map head $
-                  takeWhile (not . null) $
-                  iterate getCand' [(RxTarget toScan scanned [], ("", Nothing))]
+        getCand =
+            reverse $ map head $ takeWhile (not . null) $
+            iterate getCand' [(RxTarget toScan scanned [], ("", Nothing))]
         in getCand
 
 rxOne :: forall a . Regex a -> Regex (String, a)
 rxOne sub = Rx $ \(RxTarget toScan scanned _)  -> let
     getCand' :: [(RxTarget, a)] -> [(RxTarget, (String, a))]
-    getCand' = map (\(target'@(RxTarget _ _ matched), a) -> (target', (matched, a)))
+    getCand' = map (\(target'@(RxTarget _ _ matched), a) -> (target', (reverse matched, a)))
 
     getCand :: [(RxTarget, (String, a))]
     getCand = getCand' $ runRegex sub $ RxTarget toScan scanned []
@@ -60,20 +59,20 @@ rxOne sub = Rx $ \(RxTarget toScan scanned _)  -> let
 rxCaret :: Regex ()
 rxCaret = Rx $ \target ->
     case target of
-        RxTarget xs [] matched -> [(RxTarget xs [] matched, ())]
+        RxTarget toScan [] matched -> [(RxTarget toScan [] matched, ())]
         _ -> []
 
 rxEnd :: Regex ()
 rxEnd = Rx $ \target ->
     case target of
-        RxTarget [] ys matched -> [(RxTarget [] ys matched, ())]
+        RxTarget [] scanned matched -> [(RxTarget [] scanned matched, ())]
         _ -> []
 
 regexMatch :: Regex a -> String -> Maybe String
 regexMatch rx str =
     case runRegex (rxOne rx) (RxTarget str [] []) of
         [] -> Nothing
-        (RxTarget _ _ matchedStr, _) : _ -> Just matchedStr
+        (RxTarget _ _ matched, _) : _ -> Just (reverse matched)
 
 -- regexReplace :: Regex a -> String -> String
 -- regexReplace
