@@ -3,12 +3,22 @@ module Text.RegexC where
  
 newtype Regex a = Rx { runRegex :: (RxTarget -> [(RxTarget, a)]) }
     
--- rxTargetScanned and rxCurrentMatch hold scanned and matched chars in reverse order
--- (reverse rxTargetScanned t) ++ (reverse rxCurrentMatch t) ++ (rxTargetToScan t) == targetStr
+-- rxTargetBefore and rxTargetMatched hold scanned and matched chars in reverse order
 data RxTarget = RxTarget {
-    rxTargetScanned :: String,
-    rxCurrentMatch :: String,
-    rxTargetToScan :: String }
+    rxTargetBefore :: String,
+    rxTargetMatched :: String,
+    rxTargetAfter :: String }
+
+afterToMatched :: RxTarget -> RxTarget
+afterToMatched (RxTarget bs ms (a : as)) = RxTarget bs (a : ms) as
+afterToMatched (RxTarget _ _ _) = error "Should not be executed."
+
+matchedToBeforeAll :: RxTarget -> RxTarget
+matchedToBeforeAll (RxTarget bs ms as) = RxTarget (reverse ms ++ bs) [] as
+
+recoverTarget :: RxTarget -> RxTarget -> String -> RxTarget
+recoverTarget start returned matchedHere =
+    RxTarget (rxTargetBefore start) (matchedHere ++ rxTargetMatched start) (rxTargetAfter returned)
 
 instance Monad Regex where
     m >>= next = Rx $ \target -> let
@@ -20,9 +30,9 @@ instance Monad Regex where
 rxOneChar :: Char -> Regex Char
 rxOneChar c = Rx $ \target ->
     case target of
-        RxTarget scanned matched (x : toScan) ->
+        RxTarget _ _ (x : _) ->
             if c == x
-            then [(RxTarget (x : scanned) (x : matched) toScan, x)]
+            then [(afterToMatched target, x)]
             else []
         _ -> []
 
@@ -30,43 +40,43 @@ rxOneChar c = Rx $ \target ->
 -- returns matched string and an arbitrary return value, which is Nothing if zero-matched.
 rxStar :: forall a . Regex a -> Regex (String, Maybe a)
 rxStar sub =
-    Rx $ \(RxTarget scanned _ toScan) -> let
+    Rx $ \target -> let
         getCand'' :: String -> (RxTarget, a) -> (RxTarget, (String, Maybe a))
-        getCand'' prevMatch (RxTarget scanned' matched' toScan', a) =
-            (RxTarget scanned' matched toScan', (reverse matched, Just a))
-            where
-                matched = matched' ++ prevMatch
+        getCand'' matchedHere (subTarget, a) =
+            (subTarget, (rxTargetMatched subTarget ++ matchedHere, Just a))
 
         getCand' :: [(RxTarget, (String, Maybe a))] -> [(RxTarget, (String, Maybe a))]
-        getCand' ((target@(RxTarget _ matched _), _) : _) =
-            map (getCand'' matched) $ runRegex sub target
+        getCand' ((target', (matchedHere, _)) : _) =
+            map (getCand'' matchedHere) $ runRegex sub $ matchedToBeforeAll target'
         getCand' [] = []
 
         getCand :: [(RxTarget, (String, Maybe a))]
         getCand =
+            map (\(t, (str, ret)) -> (recoverTarget target t str, (reverse str, ret))) $
             reverse $ map head $ takeWhile (not . null) $
-            iterate getCand' [(RxTarget scanned [] toScan, ("", Nothing))]
+            iterate getCand' [(target, ([], Nothing))]
+        
         in getCand
 
 rxParenthesis :: forall a . Regex a -> Regex (String, a)
-rxParenthesis sub = Rx $ \(RxTarget scanned _ toScan)  -> let
-    getCand' :: [(RxTarget, a)] -> [(RxTarget, (String, a))]
-    getCand' = map (\(target'@(RxTarget _ matched _), a) -> (target', (reverse matched, a)))
+rxParenthesis sub = Rx $ \target -> let
+    getCand' :: (RxTarget, a) -> (RxTarget, (String, a))
+    getCand' (t, a) = (recoverTarget target t (rxTargetMatched t), (reverse $ rxTargetMatched t, a))
 
     getCand :: [(RxTarget, (String, a))]
-    getCand = getCand' $ runRegex sub $ RxTarget scanned [] toScan
+    getCand = map getCand' $ runRegex sub $ matchedToBeforeAll target
     in getCand
 
 rxCaret :: Regex ()
 rxCaret = Rx $ \target ->
     case target of
-        RxTarget [] matched toScan -> [(RxTarget [] matched toScan, ())]
+        RxTarget [] _ _ -> [(target, ())]
         _ -> []
 
 rxDollar :: Regex ()
 rxDollar = Rx $ \target ->
     case target of
-        RxTarget scanned matched [] -> [(RxTarget scanned matched [], ())]
+        RxTarget _ _ [] -> [(target, ())]
         _ -> []
 
 regexMatch :: Regex a -> String -> Maybe String

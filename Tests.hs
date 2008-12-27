@@ -13,7 +13,8 @@ tests = test [
 
 testStar = test [
     "test1" ~: Just "abab" ~=? regexMatch testRxStar "ababcd",
-    "test2" ~: Nothing ~=? regexMatch testRxStar "acd" ]
+    "test2" ~: Nothing ~=? regexMatch testRxStar "acd",
+    "test3" ~: Just "abababab" ~=? regexMatch testRxStar "ababababa" ]
 
 testDollar = test [
     "test1" ~: Just "abab" ~=? regexMatch testRxDollar "abab" ]
