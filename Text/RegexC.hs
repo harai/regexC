@@ -41,13 +41,10 @@ rxOneChar c = Rx $ \target ->
 rxStar :: forall a . Regex a -> Regex (String, Maybe a)
 rxStar sub =
     Rx $ \target -> let
-        getCand'' :: String -> (RxTarget, a) -> (RxTarget, (String, Maybe a))
-        getCand'' matchedHere (subTarget, a) =
-            (subTarget, (rxTargetMatched subTarget ++ matchedHere, Just a))
-
         getCand' :: [(RxTarget, (String, Maybe a))] -> [(RxTarget, (String, Maybe a))]
         getCand' ((target', (matchedHere, _)) : _) =
-            map (getCand'' matchedHere) $ runRegex sub $ matchedToBeforeAll target'
+            map (\(subTgt, a) -> (subTgt, (rxTargetMatched subTgt ++ matchedHere, Just a))) $
+            runRegex sub $ matchedToBeforeAll target'
         getCand' [] = []
 
         getCand :: [(RxTarget, (String, Maybe a))]
