@@ -11,7 +11,7 @@ data RxTarget = RxTarget {
 
 afterToMatched :: RxTarget -> RxTarget
 afterToMatched (RxTarget bs ms (a : as)) = RxTarget bs (a : ms) as
-afterToMatched (RxTarget _ _ _) = error "Should not be executed."
+afterToMatched (RxTarget _ _ _) = error "Should not happen."
 
 matchedToBeforeAll :: RxTarget -> RxTarget
 matchedToBeforeAll (RxTarget bs ms as) = RxTarget (reverse ms ++ bs) [] as
@@ -27,6 +27,9 @@ instance Monad Regex where
         in concatMap getNextCand thisCand
     return a = Rx $ \target -> [(target, a)]
 
+instance Functor Regex where
+    fmap f rx = Rx $ \target -> map (\(t, v) -> (t, f v)) $ runRegex rx target
+
 rxOneChar :: Char -> Regex Char
 rxOneChar c = Rx $ \target ->
     case target of
@@ -41,51 +44,39 @@ rxDot = Rx $ \target ->
     case target of
         RxTarget _ _ (x : _) -> [(afterToMatched target, x)]
         _ -> []
--- http://www.haskell.org/ghc/docs/latest/html/users_guide/other-type-extensions.html#scoped-type-variables
--- returns matched string and an arbitrary return value, which is Nothing if zero-matched.
-rxStar :: forall a . Regex a -> Regex (String, Maybe a)
-rxStar sub =
-    Rx $ \target -> let
-        getCand' :: [(RxTarget, (String, Maybe a))] -> [(RxTarget, (String, Maybe a))]
-        getCand' ((target', (matchedHere, _)) : _) =
-            map (\(subTgt, a) -> (subTgt, (rxTargetMatched subTgt ++ matchedHere, Just a))) $
-            runRegex sub $ matchedToBeforeAll target'
-        getCand' [] = []
 
-        getCand :: [(RxTarget, (String, Maybe a))]
-        getCand =
-            map (\(t, (str, ret)) -> (recoverTarget target t str, (reverse str, ret))) $
-            reverse $ map head $ takeWhile (not . null) $
-            iterate getCand' [(target, ([], Nothing))]
-        
-        in getCand
+rxStar :: Regex a -> Regex (String, Maybe a)
+rxStar = makeGroup reverse
 
--- TODO: refactor
-rxStarQ :: forall a . Regex a -> Regex (String, Maybe a)
-rxStarQ sub =
-    Rx $ \target -> let
-        getCand' :: [(RxTarget, (String, Maybe a))] -> [(RxTarget, (String, Maybe a))]
-        getCand' ((target', (matchedHere, _)) : _) =
-            map (\(subTgt, a) -> (subTgt, (rxTargetMatched subTgt ++ matchedHere, Just a))) $
-            runRegex sub $ matchedToBeforeAll target'
-        getCand' [] = []
-
-        getCand :: [(RxTarget, (String, Maybe a))]
-        getCand =
-            map (\(t, (str, ret)) -> (recoverTarget target t str, (reverse str, ret))) $
-            map head $ takeWhile (not . null) $
-            iterate getCand' [(target, ([], Nothing))]
-        
-        in getCand
+rxStarQ :: Regex a -> Regex (String, Maybe a)
+rxStarQ = makeGroup id
 
 rxParenthesis :: forall a . Regex a -> Regex (String, a)
-rxParenthesis sub = Rx $ \target -> let
-    getCand' :: (RxTarget, a) -> (RxTarget, (String, a))
-    getCand' (t, a) = (recoverTarget target t (rxTargetMatched t), (reverse $ rxTargetMatched t, a))
+rxParenthesis rx = fmap nomaybe $ makeGroup (take 1 . drop 1) rx
+    where
+        nomaybe :: (String, Maybe a) -> (String, a)
+        nomaybe (s, Just a) = (s, a)
+        nomaybe (s, Nothing) = error "Should not happen."
+        
 
-    getCand :: [(RxTarget, (String, a))]
-    getCand = map getCand' $ runRegex sub $ matchedToBeforeAll target
-    in getCand
+-- http://www.haskell.org/ghc/docs/latest/html/users_guide/other-type-extensions.html#scoped-type-variables
+-- returns matched string and an arbitrary return value, which is Nothing if zero-matched.
+makeGroup :: forall a . (forall b . [b] -> [b]) -> Regex a -> Regex (String, Maybe a)
+makeGroup sortFunc sub =
+    Rx $ \target -> let
+        getCand' :: [(RxTarget, (String, Maybe a))] -> [(RxTarget, (String, Maybe a))]
+        getCand' ((target', (matchedHere, _)) : _) =
+            map (\(subTgt, a) -> (subTgt, (rxTargetMatched subTgt ++ matchedHere, Just a))) $
+            runRegex sub $ matchedToBeforeAll target'
+        getCand' [] = []
+
+        getCand :: [(RxTarget, (String, Maybe a))]
+        getCand =
+            map (\(t, (str, ret)) -> (recoverTarget target t str, (reverse str, ret))) $
+            sortFunc $ map head $ takeWhile (not . null) $
+            iterate getCand' [(target, ([], Nothing))]
+        
+        in getCand
 
 rxCaret :: Regex ()
 rxCaret = Rx $ \target ->
@@ -109,6 +100,5 @@ regexMatch rx str =
            rxStarQ rxDot
            (matched, _) <- rxParenthesis rx
            return matched
-
 -- regexReplace :: Regex a -> String -> String
 -- regexReplace
