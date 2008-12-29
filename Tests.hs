@@ -17,7 +17,10 @@ testStar = test [
     "test3" ~: Just "abababab" ~=? regexMatch testRxStar "ababababa" ]
 
 testDollar = test [
-    "test1" ~: Just "abab" ~=? regexMatch testRxDollar "abab" ]
+    "test1" ~: Just "abab" ~=? regexMatch testRxDollar "abab",
+    "test2" ~: Just "abab" ~=? regexMatch testRxDollar "ababab",
+    "test3" ~: Just "abab" ~=? regexMatch testRxDollar "cdabab",
+    "test4" ~: Nothing ~=? regexMatch testRxDollar "abcdab" ]
 
 testCaret = test [
     "test1" ~: Just "ab" ~=? regexMatch testRxCaret "abcd",

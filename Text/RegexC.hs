@@ -36,6 +36,11 @@ rxOneChar c = Rx $ \target ->
             else []
         _ -> []
 
+rxDot :: Regex Char
+rxDot = Rx $ \target ->
+    case target of
+        RxTarget _ _ (x : _) -> [(afterToMatched target, x)]
+        _ -> []
 -- http://www.haskell.org/ghc/docs/latest/html/users_guide/other-type-extensions.html#scoped-type-variables
 -- returns matched string and an arbitrary return value, which is Nothing if zero-matched.
 rxStar :: forall a . Regex a -> Regex (String, Maybe a)
@@ -51,6 +56,24 @@ rxStar sub =
         getCand =
             map (\(t, (str, ret)) -> (recoverTarget target t str, (reverse str, ret))) $
             reverse $ map head $ takeWhile (not . null) $
+            iterate getCand' [(target, ([], Nothing))]
+        
+        in getCand
+
+-- TODO: refactor
+rxStarQ :: forall a . Regex a -> Regex (String, Maybe a)
+rxStarQ sub =
+    Rx $ \target -> let
+        getCand' :: [(RxTarget, (String, Maybe a))] -> [(RxTarget, (String, Maybe a))]
+        getCand' ((target', (matchedHere, _)) : _) =
+            map (\(subTgt, a) -> (subTgt, (rxTargetMatched subTgt ++ matchedHere, Just a))) $
+            runRegex sub $ matchedToBeforeAll target'
+        getCand' [] = []
+
+        getCand :: [(RxTarget, (String, Maybe a))]
+        getCand =
+            map (\(t, (str, ret)) -> (recoverTarget target t str, (reverse str, ret))) $
+            map head $ takeWhile (not . null) $
             iterate getCand' [(target, ([], Nothing))]
         
         in getCand
@@ -78,9 +101,14 @@ rxDollar = Rx $ \target ->
 
 regexMatch :: Regex a -> String -> Maybe String
 regexMatch rx str =
-    case runRegex (rxParenthesis rx) (RxTarget [] [] str) of
+    case runRegex regex (RxTarget [] [] str) of
         [] -> Nothing
-        (RxTarget _ matched _, _) : _ -> Just (reverse matched)
+        (_, matched) : _ -> Just matched
+    where
+       regex = do
+           rxStarQ rxDot
+           (matched, _) <- rxParenthesis rx
+           return matched
 
 -- regexReplace :: Regex a -> String -> String
 -- regexReplace
