@@ -9,7 +9,8 @@ main = runTestTT tests
 tests = test [
     testStar,
     testDollar,
-    testCaret ]
+    testCaret,
+    testBracket ]
 
 testStar = test [
     "test1" ~: Just "abab" ~=? regexMatch testRxStar "ababcd",
@@ -27,7 +28,13 @@ testCaret = test [
     "test2" ~: Nothing ~=? regexMatch testRxCaret "cdab",
     "test3" ~: Nothing ~=? regexMatch testRxCaret "" ]
 
--- m/(ab)*ab/
+testBracket = test [
+    "test1" ~: Just "a" ~=? regexMatch testRxBracket "a",
+    "test2" ~: Just "c" ~=? regexMatch testRxBracket "c",
+    "test3" ~: Nothing ~=? regexMatch testRxBracket "d",
+    "test4" ~: Nothing ~=? regexMatch testRxBracket "" ]
+
+-- /(ab)*ab/
 testRxStar :: Regex String
 testRxStar = do
     (matched, _) <- rxStar $ do
@@ -37,7 +44,12 @@ testRxStar = do
     rxOneChar 'b'
     return matched
 
--- m/abab$/
+testRxBracket :: Regex ()
+testRxBracket = do
+    rxBracket "abc"
+    return ()
+
+-- /abab$/
 testRxDollar :: Regex ()
 testRxDollar = do
     rxOneChar 'a'
@@ -47,7 +59,7 @@ testRxDollar = do
     rxDollar
     return ()
 
--- -- m/(ab)ab/
+-- -- /(ab)ab/
 -- testRxParenthesis :: Regex String
 -- testRxParenthesis = do
 --     (matched, _) <- rxParenthesis $ do
@@ -58,7 +70,7 @@ testRxDollar = do
 --     rxDollar
 --     return matched
 
--- m/^ab/
+-- /^ab/
 testRxCaret :: Regex ()
 testRxCaret = do
     rxCaret

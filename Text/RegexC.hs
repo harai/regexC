@@ -45,6 +45,15 @@ rxDot = Rx $ \target ->
         RxTarget _ _ (x : _) -> [(afterToMatched target, x)]
         _ -> []
 
+rxBracket :: String -> Regex Char
+rxBracket chars = Rx $ \target ->
+    case target of
+        RxTarget _ _ (x : _) ->
+            if x `elem` chars
+            then [(afterToMatched target, x)]
+            else []
+        _ -> []
+
 rxStar :: Regex a -> Regex (String, Maybe a)
 rxStar = makeGroup reverse
 
