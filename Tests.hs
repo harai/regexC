@@ -10,7 +10,8 @@ tests = test [
     testStar,
     testDollar,
     testCaret,
-    testBracket ]
+    testBracket,
+    testPipe ]
 
 testStar = test [
     "test1" ~: Just "abab" ~=? regexMatch testRxStar "ababcd",
@@ -34,6 +35,12 @@ testBracket = test [
     "test3" ~: Nothing ~=? regexMatch testRxBracket "d",
     "test4" ~: Nothing ~=? regexMatch testRxBracket "" ]
 
+testPipe = test [
+    "test1" ~: Just "one" ~=? regexMatch testRxPipe "hogeone",
+    "test2" ~: Just "two" ~=? regexMatch testRxPipe "two",
+    "test3" ~: Nothing ~=? regexMatch testRxPipe "hoge",
+    "test4" ~: Nothing ~=? regexMatch testRxPipe "" ]
+
 -- /(ab)*ab/
 testRxStar :: Regex String
 testRxStar = do
@@ -44,10 +51,28 @@ testRxStar = do
     rxOneChar 'b'
     return matched
 
+-- /[abc]/
 testRxBracket :: Regex ()
 testRxBracket = do
     rxBracket "abc"
     return ()
+
+testRxPipe :: Regex ()
+testRxPipe = do
+    (matched, ret) <- rxPipe testOne testTwo
+    case ret of
+        Left 'e' -> return ()
+        Right 'o' -> return ()
+        _ -> error "test failed."
+    where
+        testOne = do
+            rxOneChar 'o'
+            rxOneChar 'n'
+            rxOneChar 'e'
+        testTwo = do
+            rxOneChar 't'
+            rxOneChar 'w'
+            rxOneChar 'o'
 
 -- /abab$/
 testRxDollar :: Regex ()

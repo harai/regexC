@@ -66,7 +66,17 @@ rxParenthesis rx = fmap nomaybe $ makeGroup (take 1 . drop 1) rx
         nomaybe :: (String, Maybe a) -> (String, a)
         nomaybe (s, Just a) = (s, a)
         nomaybe (s, Nothing) = error "Should not happen."
-        
+
+rxPipe :: Regex a -> Regex b -> Regex (String, Either a b)
+rxPipe rx1 rx2 = Rx $ \target ->
+    case runRegex (rxParenthesis rx1) target of
+        (t, (matched, ret)) : [] -> [(t, (matched, Left ret))]
+        [] ->
+            case runRegex (rxParenthesis rx2) target of
+                (t, (matched, ret)) : [] -> [(t, (matched, Right ret))]
+                [] -> []
+                _ -> error "Should not happen."
+        _ -> error "Should not happen."
 
 -- http://www.haskell.org/ghc/docs/latest/html/users_guide/other-type-extensions.html#scoped-type-variables
 -- returns matched string and an arbitrary return value, which is Nothing if zero-matched.
