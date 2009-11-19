@@ -78,6 +78,15 @@ rxPipe rx1 rx2 = Rx $ \target ->
                 _ -> error "Should not happen."
         _ -> error "Should not happen."
 
+rxPipe3 :: Regex a -> Regex a -> Regex a -> Regex (String, a)
+rxPipe3 rx1 rx2 rx3 = do
+    (matched, ret) <- rxPipe rx1 $ rxPipe rx2 rx3
+    case ret of
+        Left a -> return (matched, a)
+        Right (_, Left a) -> return (matched, a)
+        Right (_, Right a) -> return (matched, a)
+    
+
 -- http://www.haskell.org/ghc/docs/latest/html/users_guide/other-type-extensions.html#scoped-type-variables
 -- returns matched string and an arbitrary return value, which is Nothing if zero-matched.
 makeGroup :: forall a . (forall b . [b] -> [b]) -> Regex a -> Regex (String, Maybe a)
