@@ -85,7 +85,11 @@ rxPipe3 rx1 rx2 rx3 = do
         Left a -> return (matched, a)
         Right (_, Left a) -> return (matched, a)
         Right (_, Right a) -> return (matched, a)
-    
+
+rxPipe3_ :: Regex a -> Regex b -> Regex c -> Regex String
+rxPipe3_ rx1 rx2 rx3 = do
+    (matched, _) <- rxPipe rx1 $ rxPipe rx2 rx3
+    return matched
 
 -- http://www.haskell.org/ghc/docs/latest/html/users_guide/other-type-extensions.html#scoped-type-variables
 -- returns matched string and an arbitrary return value, which is Nothing if zero-matched.
