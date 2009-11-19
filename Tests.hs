@@ -122,3 +122,15 @@ testRxCaret = do
     rxOneChar 'a'
     rxOneChar 'b'
     return ()
+
+-- (path, name, extension)
+testFilePath :: Regex (String, String, String)
+testFilePath = do
+    rxCaret
+    (path, _) <- rxStar $ rxChar $ \c -> isAlpha c || isDigit c || c `elem` "./"
+    rxOneChar '/'
+    (name, _) <- rxStar $ rxChar $ \c -> isAlpha c || isDigit c || c `elem` "."
+    rxOneChar '.'
+    (ext, _) <- rxStar $ rxChar $ \c -> isAlpha c || isDigit c
+    rxDollar
+    return (path, name, ext)

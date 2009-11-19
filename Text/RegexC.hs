@@ -31,25 +31,19 @@ instance Functor Regex where
     fmap f rx = Rx $ \target -> map (\(t, v) -> (t, f v)) $ runRegex rx target
 
 rxOneChar :: Char -> Regex Char
-rxOneChar c = Rx $ \target ->
-    case target of
-        RxTarget _ _ (x : _) ->
-            if c == x
-            then [(afterToMatched target, x)]
-            else []
-        _ -> []
+rxOneChar c = rxChar (== c)
 
 rxDot :: Regex Char
-rxDot = Rx $ \target ->
-    case target of
-        RxTarget _ _ (x : _) -> [(afterToMatched target, x)]
-        _ -> []
+rxDot = rxChar $ \_ -> True
 
 rxBracket :: String -> Regex Char
-rxBracket chars = Rx $ \target ->
+rxBracket chars = rxChar (`elem` chars)
+
+rxChar :: (Char -> Bool) -> Regex Char
+rxChar isElement = Rx $ \target ->
     case target of
         RxTarget _ _ (x : _) ->
-            if x `elem` chars
+            if isElement x
             then [(afterToMatched target, x)]
             else []
         _ -> []
@@ -124,13 +118,29 @@ rxDollar = Rx $ \target ->
 
 regexMatch :: Regex a -> String -> Maybe String
 regexMatch rx str =
+    case regexBase rx str of
+        Nothing -> Nothing
+        Just (_, matched, _, _) -> Just matched
+
+-- regexMatch :: Regex a -> String -> Maybe String
+-- regexMatch rx str =
+--     case runRegex regex (RxTarget [] [] str) of
+--         [] -> Nothing
+--         (_, matched) : _ -> Just matched
+--     where
+--        regex = do
+--            rxStarQ rxDot
+--            (matched, _) <- rxParenthesis rx
+--            return matched
+
+-- returns (before, matched, after, returnedValue)
+regexBase :: Regex a -> String -> Maybe (String, String, String, a)
+regexBase rx str =
     case runRegex regex (RxTarget [] [] str) of
         [] -> Nothing
-        (_, matched) : _ -> Just matched
+        (RxTarget _ _ after, (before, matched, ret)) : _ -> Just (before, matched, after, ret)
     where
        regex = do
-           rxStarQ rxDot
-           (matched, _) <- rxParenthesis rx
-           return matched
--- regexReplace :: Regex a -> String -> String
--- regexReplace
+           (before, _) <- rxStarQ rxDot
+           (matched, ret) <- rxParenthesis rx
+           return (before, matched, ret)
